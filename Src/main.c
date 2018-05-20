@@ -38,16 +38,26 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-#include "hx8347d.h"
 
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
+#include "hx8347d.h"
+#include "leptoncontrol.h"
+
+//разме принимаемых блоком данных по SPI
+#define SPI_READ_VOSPI_AMOUNT 59
+
+unsigned char buffer[VOSPI_PACKAGE_SIZE*SPI_READ_VOSPI_AMOUNT];//буфер сборки изображения
+unsigned short ColorMap[256];//палитра
 
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
-SPI_HandleTypeDef hspi2;
+SPI_HandleTypeDef hspi1;
+
+SRAM_HandleTypeDef hsram1;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -57,8 +67,9 @@ SPI_HandleTypeDef hspi2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_SPI2_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_FSMC_Init(void);
+static void MX_SPI1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -66,6 +77,83 @@ static void MX_I2C1_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+
+//------------------------------------------------------------------------------------------
+//создание палитры
+//------------------------------------------------------------------------------------------
+void CreatePalette(void)
+{
+ for(long n=0;n<256;n++)
+ {	
+  unsigned short color=n>>3;
+  color<<=6;
+	color|=n>>2;
+	color<<=5;
+	color|=n>>3;
+  ColorMap[n]=color;
+ }
+}
+
+//------------------------------------------------------------------------------------------
+//создание и вывод изображения 
+//------------------------------------------------------------------------------------------
+void CreateImage(void)
+{  	
+ unsigned short *raw14_ptr=LEPTONCONTROL_GetRAW14Ptr();
+ unsigned long min=0x10000;
+ unsigned long max=0;
+ unsigned long y;
+ unsigned long x;
+ unsigned short *raw14_local_ptr;
+ raw14_local_ptr=raw14_ptr;
+ unsigned long width=LEPTON_ORIGINAL_IMAGE_WIDTH;
+ unsigned long height=LEPTON_ORIGINAL_IMAGE_HEIGHT;
+ for(y=0;y<height;y++)
+ {
+  for(x=0;x<width;x++,raw14_local_ptr++)
+  {
+   unsigned short raw14=*raw14_local_ptr;
+   if (raw14>max) max=raw14;
+   if (raw14<min) min=raw14;
+  }
+ }
+ long delta=max-min;
+ if (delta==0) delta=1;
+ raw14_local_ptr=raw14_ptr;
+ //выполняем перекодирование к палитре (предварительная обработка позволит не ждать при выводе пикселей)
+ for(y=0;y<height;y++)
+ {
+  for(x=0;x<width;x++,raw14_local_ptr++)
+  {
+   long value=*raw14_local_ptr;
+   value-=min;
+   value=(value*255)/delta;
+   if (value>255) value=255;
+   if (value<0) value=0;
+	 *raw14_local_ptr=ColorMap[value];		
+	} 
+ }
+ //выводим раскрашенное изображение с удвоением строк и столбцов
+ HX8347D_SetWindow(0,0,HX8347D_WIDTH-1,HX8347D_HEIGHT-1); 
+ //выбираем регистр вывода изображения
+ HX8347D_SelectRegister(0x22);
+ //идем по экрану с переворотом изображения
+ raw14_local_ptr=raw14_ptr;
+  
+ for(y=0;y<HX8347D_HEIGHT/2;y++,raw14_local_ptr++)//0...319
+ {
+  for(long n=0;n<2;n++)
+  {	 
+   unsigned short *raw14_color_ptr=raw14_local_ptr+width*(HX8347D_WIDTH/2-1);
+   for(x=0;x<HX8347D_WIDTH/2;x++,raw14_color_ptr-=width)//0..239
+   {
+    unsigned short color=*raw14_color_ptr;
+    HX8347D_Write16(color);
+  	HX8347D_Write16(color);
+   }
+  }
+ }
+}
 
 /* USER CODE END 0 */
 
@@ -90,12 +178,14 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
+	HX8347D_InitGPIO();//инициализируем порты LCD-экрана (это обязательно нужно делать до MX_FSMC_Init!)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI2_Init();
   MX_I2C1_Init();
+  MX_FSMC_Init();
+  MX_SPI1_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -103,25 +193,39 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	
-	__HAL_RCC_GPIOE_CLK_ENABLE();
-  //настраиваем параметры порта
+	//инициализируем модуль управления lepton3
+	LEPTONCONTROL_Init();
+  //инициализируем экран	
 	HX8347D_Init();
-	
-  GPIO_InitTypeDef GPIO_Init;
-  GPIO_Init.Mode=GPIO_MODE_OUTPUT_PP;
-  GPIO_Init.Pull=GPIO_NOPULL;
-  GPIO_Init.Pin=GPIO_PIN_0; 
-  GPIO_Init.Speed=GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(GPIOE,&GPIO_Init);		
-	
-  while (1)
+  //очищаем экран
+	HX8347D_Clear(HX8347D_BLACK);	
+	//создаем палитру
+	CreatePalette();	
+	//делаем паузу для запуска lepton3
+	HAL_Delay(100);	
+	while(1)
 	{
-	 HAL_GPIO_WritePin(GPIOE,GPIO_PIN_0,GPIO_PIN_RESET);		
-	 for(volatile unsigned long n=0;n<10000000;n++);
-	 HAL_GPIO_WritePin(GPIOE,GPIO_PIN_0,GPIO_PIN_SET); 	
-	 for(volatile unsigned long n=0;n<10000000;n++);
-	}
+   //ищем начало кадра		
+   while(1) 
+   {
+    HAL_SPI_Receive(&hspi1,buffer,VOSPI_PACKAGE_SIZE,0x1000);			 
+    bool first_line=false;
+    unsigned char *buffer_ptr=buffer;
+    LEPTONCONTROL_PushVoSPI(buffer_ptr,&first_line);
+    if (first_line==true) break;
+   }
+	 //читаем остаток пакета от lepton3
+	 unsigned char *buffer_ptr=buffer;
+	 HAL_SPI_Receive(&hspi1,buffer_ptr,VOSPI_PACKAGE_SIZE*SPI_READ_VOSPI_AMOUNT,0x1000);
+   buffer_ptr=buffer;
+   for(long n=0;n<SPI_READ_VOSPI_AMOUNT;n++,buffer_ptr+=VOSPI_PACKAGE_SIZE) 
+   {
+    bool first_line=false;
+    bool res=LEPTONCONTROL_PushVoSPI(buffer_ptr,&first_line);
+    if (res==true) CreateImage();
+   } 
+  }	
+  	
   {
   /* USER CODE END WHILE */
 
@@ -152,8 +256,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 168;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 336;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -207,23 +311,23 @@ static void MX_I2C1_Init(void)
 
 }
 
-/* SPI2 init function */
-static void MX_SPI2_Init(void)
+/* SPI1 init function */
+static void MX_SPI1_Init(void)
 {
 
-  hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_MASTER;
-  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi2.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -243,7 +347,51 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+}
+
+/* FSMC initialization function */
+static void MX_FSMC_Init(void)
+{
+  FSMC_NORSRAM_TimingTypeDef Timing;
+
+  /** Perform the SRAM1 memory initialization sequence
+  */
+  hsram1.Instance = FSMC_NORSRAM_DEVICE;
+  hsram1.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
+  /* hsram1.Init */
+  hsram1.Init.NSBank = FSMC_NORSRAM_BANK1;
+  hsram1.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
+  hsram1.Init.MemoryType = FSMC_MEMORY_TYPE_SRAM;
+  hsram1.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_8;
+  hsram1.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
+  hsram1.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
+  hsram1.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
+  hsram1.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
+  hsram1.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
+  hsram1.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
+  hsram1.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
+  hsram1.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
+  hsram1.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
+  hsram1.Init.PageSize = FSMC_PAGE_SIZE_NONE;
+  /* Timing */
+  Timing.AddressSetupTime = 2;
+  Timing.AddressHoldTime = 15;
+  Timing.DataSetupTime = 5;
+  Timing.BusTurnAroundDuration = 0;
+  Timing.CLKDivision = 16;
+  Timing.DataLatency = 17;
+  Timing.AccessMode = FSMC_ACCESS_MODE_A;
+  /* ExtTiming */
+
+  if (HAL_SRAM_Init(&hsram1, &Timing, NULL) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
 
 }
 

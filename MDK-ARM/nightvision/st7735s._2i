@@ -1,0 +1,6 @@
+--c99 -c --cpu Cortex-M4.fp -D__MICROLIB -O3 -Otime --apcs=interwork --split_sections --enum_is_int --signed_chars -I../Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Middlewares/ST/STM32_USB_Host_Library/Core/Inc -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/ST/STM32_USB_Host_Library/Class/AUDIO/Inc --C99
+-I E:\stm32\Nightvision\MDK-ARM\RTE
+-I e:\lang\Keil_v5\ARM\PACK\ARM\CMSIS\4.2.0\CMSIS\Include
+-I e:\lang\Keil_v5\ARM\PACK\Keil\STM32F4xx_DFP\2.3.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include
+-D__UVISION_VERSION="514" -D_RTE_ -DSTM32F407xx -DUSE_HAL_DRIVER -DSTM32F407xx
+-o nightvision\st7735s.o --depend nightvision\st7735s.d --feedback "nightvision\nightvision.fed" "..\Src\ST7735S.c"

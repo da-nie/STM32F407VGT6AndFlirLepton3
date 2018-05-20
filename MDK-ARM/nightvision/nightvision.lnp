@@ -1,0 +1,29 @@
+--cpu Cortex-M4.fp
+"nightvision\startup_stm32f407xx.o"
+"nightvision\system_stm32f4xx.o"
+"nightvision\stm32f4xx_hal_dma.o"
+"nightvision\stm32f4xx_hal_pwr_ex.o"
+"nightvision\stm32f4xx_hal_tim.o"
+"nightvision\stm32f4xx_hal.o"
+"nightvision\stm32f4xx_hal_tim_ex.o"
+"nightvision\stm32f4xx_hal_rcc_ex.o"
+"nightvision\stm32f4xx_hal_rcc.o"
+"nightvision\stm32f4xx_hal_dma_ex.o"
+"nightvision\stm32f4xx_hal_flash_ex.o"
+"nightvision\stm32f4xx_hal_pwr.o"
+"nightvision\stm32f4xx_hal_gpio.o"
+"nightvision\stm32f4xx_hal_flash_ramfunc.o"
+"nightvision\stm32f4xx_hal_flash.o"
+"nightvision\stm32f4xx_hal_spi.o"
+"nightvision\stm32f4xx_hal_cortex.o"
+"nightvision\stm32f4xx_hal_i2c.o"
+"nightvision\stm32f4xx_hal_i2c_ex.o"
+"nightvision\main.o"
+"nightvision\stm32f4xx_hal_msp.o"
+"nightvision\stm32f4xx_it.o"
+"nightvision\hx8347d.o"
+--library_type=microlib --nodebug --strict --scatter "nightvision\nightvision.sct"
+
+--diag_suppress=L6329 --summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "nightvision.map" -o nightvision\nightvision.axf

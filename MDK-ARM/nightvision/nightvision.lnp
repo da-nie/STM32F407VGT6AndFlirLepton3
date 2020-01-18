@@ -23,10 +23,16 @@
 "nightvision\main.o"
 "nightvision\stm32f4xx_hal_msp.o"
 "nightvision\stm32f4xx_it.o"
-"nightvision\hx8347d.o"
 "nightvision\leptoncontrol.o"
+"nightvision\il9325.o"
+"nightvision\sd.o"
+"nightvision\diskio.o"
+"nightvision\ff.o"
+"nightvision\ffsystem.o"
+"nightvision\ffunicode.o"
+"nightvision\button.o"
+"nightvision\processing.o"
 --library_type=microlib --nodebug --strict --scatter "nightvision\nightvision.sct"
-
 --diag_suppress=L6329 --summary_stderr --info summarysizes --map --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
 --list "nightvision.map" -o nightvision\nightvision.axf

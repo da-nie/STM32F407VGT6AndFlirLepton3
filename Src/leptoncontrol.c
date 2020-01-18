@@ -1,12 +1,14 @@
 #include "leptoncontrol.h"
 #include "stm32f4xx_hal.h"
-#include "hx8347d.h"
 
-static unsigned short RAW14Image[LEPTON_ORIGINAL_IMAGE_HEIGHT*LEPTON_ORIGINAL_IMAGE_WIDTH];//собираемое изображение
-static unsigned short CRCTable[256];//таблица для расчета CRC16
+static uint16_t RAW14Image[LEPTON_ORIGINAL_IMAGE_HEIGHT*LEPTON_ORIGINAL_IMAGE_WIDTH];//собираемое изображение
+static uint16_t CRCTable[256];//таблица для расчета CRC16
 
+//время для ресинхронизации в мс
 #define RESYNC_TIMEOUT_MS 19
+//код: нет сегмента
 #define NO_SEGMENT -1
+//код: ошибка пакета
 #define ERROR_PACKAGE -2
 
 //----------------------------------------------------------------------------------------------------
@@ -14,11 +16,12 @@ static unsigned short CRCTable[256];//таблица для расчета CRC16
 //----------------------------------------------------------------------------------------------------
 void LEPTONCONTROL_Init(void)
 {
- unsigned short code;
- for(long n=0;n<256;n++)
+ //инициализируем таблицу для вычисления CRC	
+ uint16_t code;
+ for(int32_t n=0;n<256;n++)
  {
-  code=((unsigned short)n)<<8;
-  for(unsigned char m=0;m<8;m++)
+  code=((uint16_t)n)<<8;
+  for(uint8_t m=0;m<8;m++)
   {
    if(code&(1<<15)) code=(code<<1)^0x1021;
                else code=code<<1;
@@ -30,12 +33,12 @@ void LEPTONCONTROL_Init(void)
 //----------------------------------------------------------------------------------------------------
 //вычислить crc
 //----------------------------------------------------------------------------------------------------
-void LEPTONCONTROL_CalculateCRC(unsigned short *crc,unsigned char byte)
+void LEPTONCONTROL_CalculateCRC(uint16_t *crc,uint8_t byte)
 {
  *crc=CRCTable[(((*crc)>>8)^byte++)&0xFF]^((*crc)<<8);
 /*	
  (*crc)^=(byte<<8);
- for(unsigned char n=0;n<8;n++) 
+ for(uint8_t n=0;n<8;n++) 
  { 
   if ((*crc)&0x8000) *crc=((*crc)<<1)^0x1021;
                 else (*crc)<<=1;
@@ -45,18 +48,18 @@ void LEPTONCONTROL_CalculateCRC(unsigned short *crc,unsigned char byte)
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-long LEPTONCONTROL_ReadSegment(unsigned short *raw14_ptr,unsigned char data[VOSPI_PACKAGE_SIZE],bool *first_line)
+int32_t LEPTONCONTROL_ReadSegment(uint16_t *raw14_ptr,uint8_t data[VOSPI_PACKAGE_SIZE],bool *first_line)
 {
- static long current_package=-1;
- static long segment=-1;
- long n;
+ static int32_t current_package=-1;
+ static int32_t segment=-1;
+ int32_t n;
  *first_line=false;
  if ((data[0]&0x0F)==0x0F) return(NO_SEGMENT);//отбрасываемый пакет
- unsigned short crc=data[2];
+ uint16_t crc=data[2];
  crc<<=8;
  crc|=data[3];
  //считаем CRC
- unsigned short crc16=0;
+ uint16_t crc16=0;
  LEPTONCONTROL_CalculateCRC(&crc16,data[0]&0x0F);
  LEPTONCONTROL_CalculateCRC(&crc16,data[1]);
  LEPTONCONTROL_CalculateCRC(&crc16,0);
@@ -65,7 +68,7 @@ long LEPTONCONTROL_ReadSegment(unsigned short *raw14_ptr,unsigned char data[VOSP
  if (crc16!=crc) return(ERROR_PACKAGE);//ошибка CRC
 
  //определяем номер пакета
- unsigned short package=data[0]&0x0F;
+ uint16_t package=data[0]&0x0F;
  package<<=8;
  package|=data[1];
  if (package==0)
@@ -75,7 +78,7 @@ long LEPTONCONTROL_ReadSegment(unsigned short *raw14_ptr,unsigned char data[VOSP
  }
  if (package==20)
  {
-  unsigned char ttt=(data[0]&0x70)>>4;//номер кадра бывает только в 20 пакете
+  uint8_t ttt=(data[0]&0x70)>>4;//номер кадра бывает только в 20 пакете
   segment=ttt;
  }
  if (current_package<0) return(NO_SEGMENT);
@@ -84,13 +87,13 @@ long LEPTONCONTROL_ReadSegment(unsigned short *raw14_ptr,unsigned char data[VOSP
   current_package=-1;
   return(ERROR_PACKAGE);
  }
- unsigned short *raw_ptr=raw14_ptr+current_package*VOSPI_PACKAGE_LINE_SIZE/2;
+ uint16_t *raw_ptr=raw14_ptr+current_package*VOSPI_PACKAGE_LINE_SIZE/2;
  for(n=0;n<VOSPI_PACKAGE_LINE_SIZE/2;n++,raw_ptr++)
  {
   //байты заданы в порядке big-endian: старший, младший
-  unsigned short value=data[n*sizeof(short)+4];
+  uint16_t value=data[n*sizeof(int16_t)+4];
   value<<=8;
-  value|=data[n*sizeof(short)+5];
+  value|=data[n*sizeof(int16_t)+5];
   *raw_ptr=value;
  }
  current_package++;
@@ -102,11 +105,11 @@ long LEPTONCONTROL_ReadSegment(unsigned short *raw14_ptr,unsigned char data[VOSP
 //----------------------------------------------------------------------------------------------------
 //подать данные одного пакета VoSPI на вход модуля
 //----------------------------------------------------------------------------------------------------
-bool LEPTONCONTROL_PushVoSPI(unsigned char data[VOSPI_PACKAGE_SIZE],bool *first_line)
+bool LEPTONCONTROL_PushVoSPI(uint8_t data[VOSPI_PACKAGE_SIZE],bool *first_line)
 {
  *first_line=false;
- static long waitable_segment=1;
- long segment=LEPTONCONTROL_ReadSegment(RAW14Image+(waitable_segment-1)*VOSPI_FRAME_WIDTH*VOSPI_SEGMENT_LINE_AMOUNT,data,first_line);
+ static int32_t waitable_segment=1;
+ int32_t segment=LEPTONCONTROL_ReadSegment(RAW14Image+(waitable_segment-1)*VOSPI_FRAME_WIDTH*VOSPI_SEGMENT_LINE_AMOUNT,data,first_line);
  if (segment==ERROR_PACKAGE) HAL_Delay(RESYNC_TIMEOUT_MS);
  if (segment==ERROR_PACKAGE || segment==0) waitable_segment=1;
  if (segment==ERROR_PACKAGE || segment==NO_SEGMENT || segment==0) return(false);
@@ -124,7 +127,7 @@ bool LEPTONCONTROL_PushVoSPI(unsigned char data[VOSPI_PACKAGE_SIZE],bool *first_
 //----------------------------------------------------------------------------------------------------
 //получить указатель на данные собранного изображения
 //----------------------------------------------------------------------------------------------------
-unsigned short *LEPTONCONTROL_GetRAW14Ptr(void)
+uint16_t *LEPTONCONTROL_GetRAW14Ptr(void)
 {
  return(RAW14Image);
 }

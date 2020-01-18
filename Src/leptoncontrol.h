@@ -2,8 +2,8 @@
 #define LEPTON_CONTROL_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
-
 
 //исходные размеры изображения (не перевёрнутое)
 #define LEPTON_ORIGINAL_IMAGE_WIDTH 160
@@ -21,8 +21,8 @@
 #define VOSPI_SEGMENT_LINE_AMOUNT 60
 
 void LEPTONCONTROL_Init(void);//инициализация
-void LEPTONCONTROL_CalculateCRC(unsigned short *crc,unsigned char byte);//вычислить crc
-bool LEPTONCONTROL_PushVoSPI(unsigned char data[VOSPI_PACKAGE_SIZE],bool *first_line);//подать данные одного пакета VoSPI на вход модуля
-unsigned short *LEPTONCONTROL_GetRAW14Ptr(void);//получить указатель на данные собранного изображения
+void LEPTONCONTROL_CalculateCRC(uint16_t *crc,uint8_t byte);//вычислить crc
+bool LEPTONCONTROL_PushVoSPI(uint8_t data[VOSPI_PACKAGE_SIZE],bool *first_line);//подать данные одного пакета VoSPI на вход модуля
+uint16_t *LEPTONCONTROL_GetRAW14Ptr(void);//получить указатель на данные собранного изображения
 
 #endif

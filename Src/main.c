@@ -37,6 +37,7 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "processing.h"
 #include "stm32f4xx_hal.h"
 
 void SystemClock_Config(void);

@@ -3,7 +3,9 @@
 //----------------------------------------------------------------------------------------------------
 #include "processing.h"
 #include "stm32f4xx_hal.h"
-#include "il9325.h"
+//#include "cdisplayil9325.h"
+//#include "cdisplayspfd5408.h"
+#include "cdisplayhx8347d.h"
 #include "ff.h"
 #include "sd.h"
 #include "button.h"
@@ -44,6 +46,13 @@ static SRAM_HandleTypeDef hsram1;
 static uint32_t FrameIndex=0;//индекс сохраняемого кадра
 static bool SD_Enabled=false;//есть ли SD-карта
 
+//указатель на дисплей
+CDisplayHX8347D cDisplay;
+//CDisplaySPFD5408 cDisplay;
+//CDisplayIL9325 cDisplay;
+IDisplay *iDisplay_Ptr=&cDisplay;
+
+
 //----------------------------------------------------------------------------------------------------
 //прототипы функций
 //----------------------------------------------------------------------------------------------------
@@ -75,11 +84,11 @@ void CreatePalette(void)
  }
  if (SD_Enabled==false) return;
  
- IL9325_Print("Загрузка палитры",IL9325_YELLOW);
+ iDisplay_Ptr->Print("Загрузка палитры",IDisplay::COLOR_YELLOW);
  FIL file;
  if (f_open(&file,"Palette.pal",FA_READ)==FR_OK)
  {
-  IL9325_Print("Файл Palette.pal найден",IL9325_YELLOW);
+  iDisplay_Ptr->Print("Файл Palette.pal найден",IDisplay::COLOR_YELLOW);
 	int32_t n;
   for(n=0;n<PALETTE_SIZE;n++)
   {	
@@ -105,12 +114,12 @@ void CreatePalette(void)
    ColorMap[n]=color;
   } 	 
   f_close(&file);
-	if (n!=PALETTE_SIZE) IL9325_Print("Ошибка загрузки палитры",IL9325_YELLOW);
-	                else IL9325_Print("Палитра загружена",IL9325_YELLOW);
+	if (n!=PALETTE_SIZE) iDisplay_Ptr->Print("Ошибка загрузки палитры",IDisplay::COLOR_YELLOW);
+	                else iDisplay_Ptr->Print("Палитра загружена",IDisplay::COLOR_YELLOW);
  }
  else
  {
-	IL9325_Print("Загрузка палитры не удалась",IL9325_YELLOW);
+	iDisplay_Ptr->Print("Загрузка палитры не удалась",IDisplay::COLOR_YELLOW);
 	HAL_Delay(2000);
  } 
 }
@@ -269,31 +278,29 @@ void CreateImage(void)
 	} 
  }
  //выводим раскрашенное изображение с удвоением строк и столбцов
- IL9325_SetWindow(0,0,IL9325_WIDTH-1,IL9325_HEIGHT-1); 
- //выбираем регистр вывода изображения
- IL9325_SelectRegister(ILI932X_RW_GRAM);
+ iDisplay_Ptr->SetWindow(0,0,IDisplay::DISPLAY_WIDTH-1,IDisplay::DISPLAY_HEIGHT-1); 
  //идем по экрану с переворотом изображения
  raw14_local_ptr=raw14_ptr;
   
- for(y=0;y<IL9325_HEIGHT/2;y++,raw14_local_ptr++)//0...319
+ for(y=0;y<IDisplay::DISPLAY_HEIGHT/2;y++,raw14_local_ptr++)//0...319
  {
   for(int32_t n=0;n<2;n++)
   {	 
-   uint16_t *raw14_color_ptr=raw14_local_ptr+width*(IL9325_WIDTH/2-1);
-   for(x=0;x<IL9325_WIDTH/2;x++,raw14_color_ptr-=width)//0..239
+	 uint16_t *raw14_color_ptr=raw14_local_ptr+width*(IDisplay::DISPLAY_WIDTH/2-1);
+	 for(x=0;x<IDisplay::DISPLAY_WIDTH/2;x++,raw14_color_ptr-=width)//0..239
    {
     uint16_t color=*raw14_color_ptr;
-    IL9325_Write16(color);
-  	IL9325_Write16(color);
+		iDisplay_Ptr->OutColor(color);
+		iDisplay_Ptr->OutColor(color);
    }
   }
  }
  /*
  char str[50];
  sprintf(str,"%.1f..%.1f",t_min,t_max);
- IL9325_PutString(0,0,str,IL9325_CYAN);//вывод строчки в позицию 
+ iDisplay_Ptr->PutString(0,0,str,IDisplay::COLOR_CYAN);//вывод строчки в позицию 
  sprintf(str,"%i..%i",min,max);
- IL9325_PutString(0,FONT_HEIGHT,str,IL9325_CYAN);//вывод строчки в позицию 
+ iDisplay_Ptr->PutString(0,IDisplay::FONT_HEIGHT,str,IDisplay::COLOR_CYAN);//вывод строчки в позицию 
  */
 }
 
@@ -324,7 +331,7 @@ DWORD get_fattime(void)
 void Init(void)
 {
  //инициализируем порты LCD-экрана (это обязательно нужно делать до MX_FSMC_Init!)		
- IL9325_InitGPIO();	
+ iDisplay_Ptr->InitGPIO();
  //инициализируем кнопки	
  BUTTON_Init();	
  MX_GPIO_Init();	
@@ -434,14 +441,14 @@ static void MX_FSMC_Init(void)
 void FindSD(void)
 {
  SD_Enabled=false;	
- IL9325_Print("Инициализация SD-карты",IL9325_YELLOW);
+ iDisplay_Ptr->Print("Инициализация SD-карты",IDisplay::COLOR_YELLOW);
  SD_ANSWER sd_answer=SD_Init();
- if (sd_answer==SD_ANSWER_OK) IL9325_Print("SD:готова",IL9325_YELLOW);
- if (sd_answer==SD_ANSWER_ERROR) IL9325_Print("SD:не готова",IL9325_YELLOW);
- if (sd_answer==SD_ANSWER_SPI_ERROR) IL9325_Print("SD:настройка spi не удалась",IL9325_YELLOW);
- if (sd_answer==SD_ANSWER_SPI_NOT_SUPPORTED)IL9325_Print("SD:spi не поддерживается",IL9325_YELLOW);
- if (sd_answer==SD_ANSWER_NO_RESPONSE) IL9325_Print("SD:нет ответа от карты",IL9325_YELLOW);
- if (sd_answer==SD_ANSWER_SIZE_ERROR) IL9325_Print("SD:ошибка получения размера",IL9325_YELLOW);
+ if (sd_answer==SD_ANSWER_OK) iDisplay_Ptr->Print("SD:готова",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_ERROR) iDisplay_Ptr->Print("SD:не готова",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_SPI_ERROR) iDisplay_Ptr->Print("SD:настройка spi не удалась",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_SPI_NOT_SUPPORTED)iDisplay_Ptr->Print("SD:spi не поддерживается",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_NO_RESPONSE) iDisplay_Ptr->Print("SD:нет ответа от карты",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_SIZE_ERROR) iDisplay_Ptr->Print("SD:ошибка получения размера",IDisplay::COLOR_YELLOW);
  if (sd_answer!=SD_ANSWER_OK) 
  {
   HAL_Delay(2000);	 
@@ -450,16 +457,16 @@ void FindSD(void)
 	
  FRESULT res; 
  res=f_mount(&fs,"",1);
- if (res==FR_INVALID_DRIVE) IL9325_Print("FR_INVALID_DRIVE",IL9325_YELLOW);
- if (res==FR_DISK_ERR) IL9325_Print("FR_DISK_ERR",IL9325_YELLOW);
- if (res==FR_NOT_READY) IL9325_Print("FR_NOT_READY",IL9325_YELLOW);
- if (res==FR_NO_FILESYSTEM) IL9325_Print("FR_NO_FILESYSTEM",IL9325_YELLOW);
+ if (res==FR_INVALID_DRIVE) iDisplay_Ptr->Print("FR_INVALID_DRIVE",IDisplay::COLOR_YELLOW);
+ if (res==FR_DISK_ERR) iDisplay_Ptr->Print("FR_DISK_ERR",IDisplay::COLOR_YELLOW);
+ if (res==FR_NOT_READY) iDisplay_Ptr->Print("FR_NOT_READY",IDisplay::COLOR_YELLOW);
+ if (res==FR_NO_FILESYSTEM) iDisplay_Ptr->Print("FR_NO_FILESYSTEM",IDisplay::COLOR_YELLOW);
  if (res!=FR_OK) 
  {
   HAL_Delay(2000);	 
 	return;
  }
- IL9325_Print("Файловая система найдена",IL9325_YELLOW);	
+ iDisplay_Ptr->Print("Файловая система найдена",IDisplay::COLOR_YELLOW);	
  SD_Enabled=true;
 }
 
@@ -471,9 +478,9 @@ void Processing(void)
  //инициализируем модуль управления lepton3
  LEPTONCONTROL_Init();
  //инициализируем экран	
- IL9325_Init();
+ iDisplay_Ptr->Init();
  //очищаем экран
- IL9325_Clear(IL9325_BLACK);	
+ iDisplay_Ptr->Clear(IDisplay::COLOR_BLACK);	
  //делаем паузу для запуска lepton3
  HAL_Delay(100);	
  //запускам SD-карту	

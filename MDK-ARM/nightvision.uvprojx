@@ -329,7 +329,7 @@
             <vShortEn>1</vShortEn>
             <vShortWch>1</vShortWch>
             <VariousControls>
-              <MiscControls>--C99</MiscControls>
+              <MiscControls>--CPP</MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
               <IncludePath>../Inc;                                    ../Drivers/STM32F4xx_HAL_Driver/Inc;                                    ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;                                    ../Drivers/CMSIS/Device/ST/STM32F4xx/Include;                                    ../Drivers/CMSIS/Include</IncludePath>
@@ -521,11 +521,6 @@
               <FilePath>..\Src\leptoncontrol.h</FilePath>
             </File>
             <File>
-              <FileName>il9325.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\il9325.c</FilePath>
-            </File>
-            <File>
               <FileName>sd.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\sd.c</FilePath>
@@ -569,6 +564,56 @@
               <FileName>processing.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\processing.c</FilePath>
+            </File>
+            <File>
+              <FileName>idisplay.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Src\idisplay.h</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplaybased.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Src\cdisplaybased.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplaybased.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Src\cdisplaybased.h</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplayhx8347d.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Src\cdisplayhx8347d.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplayhx8347d.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Src\cdisplayhx8347d.h</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplayil9325.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Src\cdisplayil9325.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplayil9325.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Src\cdisplayil9325.h</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplayspfd5408.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Src\cdisplayspfd5408.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>cdisplayspfd5408.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Src\cdisplayspfd5408.h</FilePath>
+            </File>
+            <File>
+              <FileName>idisplay.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Src\idisplay.cpp</FilePath>
             </File>
           </Files>
         </Group>

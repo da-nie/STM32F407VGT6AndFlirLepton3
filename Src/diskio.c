@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "sd.h"
-#include "il9325.h"
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */

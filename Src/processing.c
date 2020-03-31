@@ -6,6 +6,7 @@
 //#include "cdisplayil9325.h"
 //#include "cdisplayspfd5408.h"
 #include "cdisplayhx8347d.h"
+#include "cdisplaystandardlibrary.h"
 #include "ff.h"
 #include "sd.h"
 #include "button.h"
@@ -51,6 +52,7 @@ CDisplayHX8347D cDisplay;
 //CDisplaySPFD5408 cDisplay;
 //CDisplayIL9325 cDisplay;
 IDisplay *iDisplay_Ptr=&cDisplay;
+CDisplayStandardLibrary cDisplayStandardLibrary(iDisplay_Ptr,false);
 
 
 //----------------------------------------------------------------------------------------------------
@@ -84,11 +86,11 @@ void CreatePalette(void)
  }
  if (SD_Enabled==false) return;
  
- iDisplay_Ptr->Print("Загрузка палитры",IDisplay::COLOR_YELLOW);
+ cDisplayStandardLibrary.Print("Загрузка палитры",IDisplay::COLOR_YELLOW);
  FIL file;
  if (f_open(&file,"Palette.pal",FA_READ)==FR_OK)
  {
-  iDisplay_Ptr->Print("Файл Palette.pal найден",IDisplay::COLOR_YELLOW);
+  cDisplayStandardLibrary.Print("Файл Palette.pal найден",IDisplay::COLOR_YELLOW);
 	int32_t n;
   for(n=0;n<PALETTE_SIZE;n++)
   {	
@@ -114,12 +116,12 @@ void CreatePalette(void)
    ColorMap[n]=color;
   } 	 
   f_close(&file);
-	if (n!=PALETTE_SIZE) iDisplay_Ptr->Print("Ошибка загрузки палитры",IDisplay::COLOR_YELLOW);
-	                else iDisplay_Ptr->Print("Палитра загружена",IDisplay::COLOR_YELLOW);
+	if (n!=PALETTE_SIZE) cDisplayStandardLibrary.Print("Ошибка загрузки палитры",IDisplay::COLOR_YELLOW);
+	                else cDisplayStandardLibrary.Print("Палитра загружена",IDisplay::COLOR_YELLOW);
  }
  else
  {
-	iDisplay_Ptr->Print("Загрузка палитры не удалась",IDisplay::COLOR_YELLOW);
+	cDisplayStandardLibrary.Print("Загрузка палитры не удалась",IDisplay::COLOR_YELLOW);
 	HAL_Delay(2000);
  } 
 }
@@ -441,14 +443,14 @@ static void MX_FSMC_Init(void)
 void FindSD(void)
 {
  SD_Enabled=false;	
- iDisplay_Ptr->Print("Инициализация SD-карты",IDisplay::COLOR_YELLOW);
+ cDisplayStandardLibrary.Print("Инициализация SD-карты",IDisplay::COLOR_YELLOW);
  SD_ANSWER sd_answer=SD_Init();
- if (sd_answer==SD_ANSWER_OK) iDisplay_Ptr->Print("SD:готова",IDisplay::COLOR_YELLOW);
- if (sd_answer==SD_ANSWER_ERROR) iDisplay_Ptr->Print("SD:не готова",IDisplay::COLOR_YELLOW);
- if (sd_answer==SD_ANSWER_SPI_ERROR) iDisplay_Ptr->Print("SD:настройка spi не удалась",IDisplay::COLOR_YELLOW);
- if (sd_answer==SD_ANSWER_SPI_NOT_SUPPORTED)iDisplay_Ptr->Print("SD:spi не поддерживается",IDisplay::COLOR_YELLOW);
- if (sd_answer==SD_ANSWER_NO_RESPONSE) iDisplay_Ptr->Print("SD:нет ответа от карты",IDisplay::COLOR_YELLOW);
- if (sd_answer==SD_ANSWER_SIZE_ERROR) iDisplay_Ptr->Print("SD:ошибка получения размера",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_OK) cDisplayStandardLibrary.Print("SD:готова",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_ERROR) cDisplayStandardLibrary.Print("SD:не готова",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_SPI_ERROR) cDisplayStandardLibrary.Print("SD:настройка spi не удалась",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_SPI_NOT_SUPPORTED)cDisplayStandardLibrary.Print("SD:spi не поддерживается",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_NO_RESPONSE) cDisplayStandardLibrary.Print("SD:нет ответа от карты",IDisplay::COLOR_YELLOW);
+ if (sd_answer==SD_ANSWER_SIZE_ERROR) cDisplayStandardLibrary.Print("SD:ошибка получения размера",IDisplay::COLOR_YELLOW);
  if (sd_answer!=SD_ANSWER_OK) 
  {
   HAL_Delay(2000);	 
@@ -457,16 +459,16 @@ void FindSD(void)
 	
  FRESULT res; 
  res=f_mount(&fs,"",1);
- if (res==FR_INVALID_DRIVE) iDisplay_Ptr->Print("FR_INVALID_DRIVE",IDisplay::COLOR_YELLOW);
- if (res==FR_DISK_ERR) iDisplay_Ptr->Print("FR_DISK_ERR",IDisplay::COLOR_YELLOW);
- if (res==FR_NOT_READY) iDisplay_Ptr->Print("FR_NOT_READY",IDisplay::COLOR_YELLOW);
- if (res==FR_NO_FILESYSTEM) iDisplay_Ptr->Print("FR_NO_FILESYSTEM",IDisplay::COLOR_YELLOW);
+ if (res==FR_INVALID_DRIVE) cDisplayStandardLibrary.Print("FR_INVALID_DRIVE",IDisplay::COLOR_YELLOW);
+ if (res==FR_DISK_ERR) cDisplayStandardLibrary.Print("FR_DISK_ERR",IDisplay::COLOR_YELLOW);
+ if (res==FR_NOT_READY) cDisplayStandardLibrary.Print("FR_NOT_READY",IDisplay::COLOR_YELLOW);
+ if (res==FR_NO_FILESYSTEM) cDisplayStandardLibrary.Print("FR_NO_FILESYSTEM",IDisplay::COLOR_YELLOW);
  if (res!=FR_OK) 
  {
   HAL_Delay(2000);	 
 	return;
  }
- iDisplay_Ptr->Print("Файловая система найдена",IDisplay::COLOR_YELLOW);	
+ cDisplayStandardLibrary.Print("Файловая система найдена",IDisplay::COLOR_YELLOW);	
  SD_Enabled=true;
 }
 
@@ -480,7 +482,7 @@ void Processing(void)
  //инициализируем экран	
  iDisplay_Ptr->Init();
  //очищаем экран
- iDisplay_Ptr->Clear(IDisplay::COLOR_BLACK);	
+ cDisplayStandardLibrary.Clear(IDisplay::COLOR_BLACK);	
  //делаем паузу для запуска lepton3
  HAL_Delay(100);	
  //запускам SD-карту	

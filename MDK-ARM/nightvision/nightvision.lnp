@@ -36,6 +36,7 @@
 "nightvision\cdisplayil9325.o"
 "nightvision\cdisplayspfd5408.o"
 "nightvision\idisplay.o"
+"nightvision\cdisplaystandardlibrary.o"
 --library_type=microlib --nodebug --strict --scatter "nightvision\nightvision.sct"
 --diag_suppress=L6329 --summary_stderr --info summarysizes --map --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
